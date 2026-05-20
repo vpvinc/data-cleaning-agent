@@ -1,16 +1,17 @@
 # Data Cleaning Agent
 
-An AI-powered data cleaning agent that automatically cleans messy datasets using LangChain and LangGraph. The agent uses an LLM to generate and execute Python code for common data cleaning tasks like handling missing values, removing duplicates, and dropping low-quality columns.
+An AI-powered data cleaning agent that automatically cleans messy datasets using LangChain and LangGraph. The agent uses an LLM to generate and execute Python code for data cleaning tasks like handling missing values, removing duplicates, treating outliers, and dropping low-quality columns.
 
 ## How It Works
 
 The agent follows a simple workflow:
-1. **Analyze**: Examines your dataset structure and identifies data quality issues
-2. **Generate**: Uses an LLM to create custom Python cleaning code based on the data
-3. **Execute**: Runs the generated code to clean your data
-4. **Retry**: Automatically fixes errors if the generated code fails (up to 3 attempts)
+1. **Inspect**: Scans your dataset for missing values and IQR outliers, column by column
+2. **Decide**: You choose a cleaning strategy per column (or leave the default)
+3. **Generate**: Uses an LLM to create custom Python cleaning code based on your decisions
+4. **Execute**: Runs the generated code to clean your data
+5. **Retry**: Automatically fixes errors if the generated code fails (up to 3 attempts)
 
-This approach combines the flexibility of LLMs with the reliability of pandas operations.
+This approach combines the flexibility of LLMs with per-column control by the user.
 
 ## Setup
 
@@ -88,8 +89,29 @@ poetry run streamlit run app.py
 
 Then:
 1. Upload your CSV file
-2. Click "Clean Data"
-3. Download the cleaned dataset
+2. Review the detected data quality issues (missing values and IQR outliers per column)
+3. Choose a cleaning strategy for each affected column:
+   - **Numeric columns — missing values**: basic cleaning / impute with mean / impute with median / drop rows / custom
+   - **Numeric columns — outliers**: basic cleaning / replace with mean / replace with median / drop rows / custom
+   - **Categorical columns — missing values**: basic cleaning / impute with mode / drop rows / custom
+4. Click "Clean Data"
+5. Download the cleaned dataset
+
+Selecting **"basic cleaning"** (the default) applies the agent's built-in rules: drop columns with >40% missing values, impute remaining missing values (mean for numeric, mode for categorical), and remove duplicates. Selecting **"custom"** lets you type any free-text instruction which the LLM will interpret.
+
+### Docker
+
+To run the app without installing Python or Poetry:
+
+```bash
+# Build the image (once)
+docker build -t data-cleaning-agent .
+
+# Run the container
+docker run -p 8501:8501 -e OPENAI_API_KEY=sk-your-key-here data-cleaning-agent
+```
+
+Then open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ### Python API
 
@@ -117,15 +139,23 @@ cleaned_df = agent.get_data_cleaned()
 cleaned_df.to_csv("cleaned_data.csv", index=False)
 ```
 
-**Optional: Provide custom instructions**
+**Optional: provide custom instructions**
 
 ```python
-# Give specific cleaning instructions to the agent
 agent.invoke_agent(
     data_raw=df,
     user_instructions="Remove columns with more than 30% missing values and standardize date formats"
 )
 ```
+
+**Optional: save the workflow graph as a PNG**
+
+```python
+agent.save_graph_visualization()          # saves to logs/workflow_graph.png
+agent.save_graph_visualization("my/path/graph.png")  # custom path
+```
+
+> Requires `playwright` (`pip install playwright && playwright install`).
 
 ## Project Structure
 
@@ -133,9 +163,10 @@ agent.invoke_agent(
 data-cleaning-agent/
 ├── data_cleaning_agent/
 │   ├── __init__.py
-│   ├── data_cleaning_agent.py  # Main agent class
-│   └── utils.py                # Utility functions
+│   ├── data_cleaning_agent.py  # Agent class + LangGraph workflow
+│   └── utils.py                # Data quality analysis + utility functions
 ├── app.py                      # Streamlit interface
+├── Dockerfile                  # Container image for cross-platform sharing
 ├── pyproject.toml              # Dependencies configuration
 ├── poetry.lock                 # Locked dependency versions
 └── README.md
