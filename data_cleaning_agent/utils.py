@@ -2,6 +2,8 @@
 
 import re
 import logging
+from typing import Dict, List, Optional
+
 import pandas as pd
 from langchain_core.output_parsers import BaseOutputParser
 
@@ -48,6 +50,98 @@ def get_dataframe_summary(df: pd.DataFrame) -> str:
         {missing_summary}"""
 
     return summary.strip()
+
+
+def analyze_data_quality(df: pd.DataFrame) -> List[dict]:
+    """
+    Analyze a DataFrame for missing values and IQR outliers.
+
+    Only returns columns that have at least one issue. Outlier detection
+    is only applied to numeric columns using the 1.5 × IQR rule.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to analyze.
+
+    Returns
+    -------
+    List[dict]
+        One dict per affected column with keys:
+        - column (str)
+        - dtype ('numeric' | 'categorical')
+        - missing_count, missing_pct  (only when missing values exist)
+        - outlier_count, outlier_pct  (only when outliers exist, numeric only)
+    """
+    issues = []
+    n = len(df)
+    if n == 0:
+        return issues
+
+    for col in df.columns:
+        info: dict = {"column": col}
+        missing = int(df[col].isna().sum())
+
+        if pd.api.types.is_numeric_dtype(df[col]):
+            info["dtype"] = "numeric"
+            q1, q3 = df[col].quantile([0.25, 0.75])
+            iqr = q3 - q1
+            outlier_mask = (df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr)
+            outliers = int(outlier_mask.sum())
+        else:
+            info["dtype"] = "categorical"
+            outliers = 0
+
+        if missing > 0:
+            info["missing_count"] = missing
+            info["missing_pct"] = round(missing / n * 100, 1)
+
+        if outliers > 0:
+            info["outlier_count"] = outliers
+            info["outlier_pct"] = round(outliers / n * 100, 1)
+
+        if missing > 0 or outliers > 0:
+            issues.append(info)
+
+    return issues
+
+
+def build_cleaning_instructions(decisions: Dict[str, dict]) -> Optional[str]:
+    """
+    Convert per-column user decisions into a text instruction string for the LLM.
+
+    Parameters
+    ----------
+    decisions : dict
+        Keys are column names. Values are dicts with optional keys:
+        - 'missing'  : one of 'impute with mean', 'impute with median',
+                       'impute with mode', 'drop rows'
+        - 'outliers' : one of 'replace with mean', 'replace with median',
+                       'drop rows'
+
+    Returns
+    -------
+    str or None
+        Formatted instruction string, or None if no decisions were made.
+    """
+    lines = []
+    for col, actions in decisions.items():
+        parts = []
+        if actions.get("missing"):
+            parts.append(f"missing values → {actions['missing']}")
+        if actions.get("outliers"):
+            parts.append(f"IQR outliers → {actions['outliers']}")
+        if parts:
+            lines.append(f"- Column '{col}': {'; '.join(parts)}")
+
+    if not lines:
+        return None
+
+    return (
+        "Apply the following column-specific cleaning rules:\n"
+        + "\n".join(lines)
+        + "\nAlso remove duplicate rows."
+    )
 
 
 def execute_agent_code(state, data_key, code_snippet_key, result_key, error_key, agent_function_name):

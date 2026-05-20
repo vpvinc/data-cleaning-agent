@@ -130,6 +130,39 @@ class LightweightDataCleaningAgent:
         if self.response:
             return self.response.get("data_cleaner_function")
 
+    def save_graph_visualization(self, output_path: str = None) -> str:
+        """
+        Save the LangGraph workflow as a PNG image using Mermaid.
+
+        Parameters
+        ----------
+        output_path : str, optional
+            Full file path for the output PNG. Defaults to './logs/workflow_graph.png'.
+
+        Returns
+        -------
+        str
+            The path where the image was saved, or None if generation failed.
+        """
+        if output_path is None:
+            output_path = os.path.join(os.getcwd(), "logs", "workflow_graph.png")
+
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        try:
+            png_data = self._compiled_graph.get_graph().draw_mermaid_png()
+            with open(output_path, "wb") as f:
+                f.write(png_data)
+            logger.info(f"Workflow graph saved to {output_path}")
+            print(f"Workflow graph saved to {output_path}")
+            return output_path
+        except Exception as e:
+            logger.warning(f"Could not generate graph visualization: {e}")
+            print(f"Could not generate graph visualization: {e}")
+            return None
+
 
 # Agent Factory Function
 
@@ -204,7 +237,8 @@ def make_lightweight_data_cleaning_agent(
             You are a Data Cleaning Agent. Create a {function_name}() function to clean the data.
 
             Basic Cleaning Steps to implement:
-            1. Remove columns with more than 40% missing values
+            1. Remove columns with more than 40% missing values. 
+            if you detect that a column is an "ID" column, drop it, do not impute it or drop it
             2. Impute missing values (mean for numeric, mode for categorical)
             3. Remove duplicate rows
 
@@ -227,7 +261,7 @@ def make_lightweight_data_cleaning_agent(
             input_variables=["user_instructions", "all_datasets_summary", "function_name"]
         )
 
-        data_cleaning_agent = data_cleaning_prompt | model | PythonOutputParser()
+        data_cleaning_agent = data_cleaning_prompt | model | PythonOutputParser() # syntax sugar for RunnableSequence(first=RunnableSequence(first=prompt, last=model), last=parser)
         
         response = data_cleaning_agent.invoke({
             "user_instructions": state.get("user_instructions") or "Follow the basic cleaning steps.",
