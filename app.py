@@ -66,26 +66,44 @@ if uploaded_file:
 
             if "missing_count" in issue:
                 opts = (
-                    ["impute with mean", "impute with median", "drop rows"]
+                    ["impute with mean", "impute with median", "drop rows", "custom"]
                     if dtype == "numeric"
-                    else ["impute with mode", "drop rows"]
+                    else ["impute with mode", "drop rows", "custom"]
                 )
-                decisions[col]["missing"] = c2.selectbox(
+                missing_choice = c2.selectbox(
                     f"missing_{col}",
                     opts,
                     key=f"missing_{col}",
                     label_visibility="collapsed",
                 )
+                if missing_choice == "custom":
+                    custom = c2.text_input(
+                        "Custom instruction",
+                        key=f"missing_custom_{col}",
+                        placeholder="e.g. fill with 0",
+                    )
+                    decisions[col]["missing"] = custom or "custom (no details provided)"
+                else:
+                    decisions[col]["missing"] = missing_choice
             else:
                 c2.caption("—")
 
             if "outlier_count" in issue:
-                decisions[col]["outliers"] = c3.selectbox(
+                outlier_choice = c3.selectbox(
                     f"outliers_{col}",
-                    ["replace with mean", "replace with median", "drop rows"],
+                    ["replace with mean", "replace with median", "drop rows", "custom"],
                     key=f"outliers_{col}",
                     label_visibility="collapsed",
                 )
+                if outlier_choice == "custom":
+                    custom = c3.text_input(
+                        "Custom instruction",
+                        key=f"outliers_custom_{col}",
+                        placeholder="e.g. cap at 99th percentile",
+                    )
+                    decisions[col]["outliers"] = custom or "custom (no details provided)"
+                else:
+                    decisions[col]["outliers"] = outlier_choice
             else:
                 c3.caption("—")
 
