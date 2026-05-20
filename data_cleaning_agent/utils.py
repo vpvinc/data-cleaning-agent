@@ -127,10 +127,12 @@ def build_cleaning_instructions(decisions: Dict[str, dict]) -> Optional[str]:
     lines = []
     for col, actions in decisions.items():
         parts = []
-        if actions.get("missing"):
-            parts.append(f"missing values → {actions['missing']}")
-        if actions.get("outliers"):
-            parts.append(f"IQR outliers → {actions['outliers']}")
+        missing = actions.get("missing")
+        outliers = actions.get("outliers")
+        if missing and missing != "basic cleaning":
+            parts.append(f"missing values → {missing}")
+        if outliers and outliers != "basic cleaning":
+            parts.append(f"IQR outliers → {outliers}")
         if parts:
             lines.append(f"- Column '{col}': {'; '.join(parts)}")
 

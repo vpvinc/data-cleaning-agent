@@ -66,9 +66,9 @@ if uploaded_file:
 
             if "missing_count" in issue:
                 opts = (
-                    ["impute with mean", "impute with median", "drop rows", "custom"]
+                    ["basic cleaning", "impute with mean", "impute with median", "drop rows", "custom"]
                     if dtype == "numeric"
-                    else ["impute with mode", "drop rows", "custom"]
+                    else ["basic cleaning", "impute with mode", "drop rows", "custom"]
                 )
                 missing_choice = c2.selectbox(
                     f"missing_{col}",
@@ -91,7 +91,7 @@ if uploaded_file:
             if "outlier_count" in issue:
                 outlier_choice = c3.selectbox(
                     f"outliers_{col}",
-                    ["replace with mean", "replace with median", "drop rows", "custom"],
+                    ["basic cleaning", "replace with mean", "replace with median", "drop rows", "custom"],
                     key=f"outliers_{col}",
                     label_visibility="collapsed",
                 )
