@@ -236,14 +236,13 @@ def make_lightweight_data_cleaning_agent(
             template="""
             You are a Data Cleaning Agent. Create a {function_name}() function to clean the data.
 
-            Basic Cleaning Steps to implement:
-            1. Remove columns with more than 40% missing values. 
-            if you detect that a column is an "ID" column, drop it, do not impute it or drop it
-            2. Impute missing values (mean for numeric, mode for categorical)
-            3. Remove duplicate rows
-
             User Instructions:
             {user_instructions}
+
+            Basic Cleaning Steps to implement if some columns are not covered by the user instructions:
+            1. Remove columns with more than 40% missing values. if you detect that a column is an "ID" column, drop it, do not impute it or drop it
+            2. Impute missing values (mean for numeric, mode for categorical)
+            3. Remove duplicate rows
 
             Dataset Summary:
             {all_datasets_summary}
